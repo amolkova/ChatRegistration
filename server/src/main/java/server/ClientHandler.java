@@ -15,9 +15,10 @@ public class ClientHandler {
     private int maxTime;
     private String nickname;
     private String login;
+    private int noTimeout = 0;
     
     public ClientHandler(Server server, Socket socket) {
-        maxTime = 5000;
+        maxTime = 8000;
         try {
             this.server = server;
             this.socket = socket;
@@ -26,9 +27,6 @@ public class ClientHandler {
             
             new Thread(() -> {
                 try {
-                    
-                    // setting socket timeout
-                    socket.setSoTimeout(maxTime);
                     
                     // authentication cycle
                     while (true) {
@@ -55,12 +53,18 @@ public class ClientHandler {
                                     server.subscribe(this);
                                     System.out.println("client: " + socket.getRemoteSocketAddress()
                                         + " connected with nick: " + nickname);
+                                    // setting socket timeout = 0 , because we have authorization
+                                    socket.setSoTimeout(noTimeout);
                                     break;
                                 } else {
                                     sendMsg("this account is already in use");
                                 }
                             } else {
+                                // setting socket timeout
+                                socket.setSoTimeout(maxTime);
                                 sendMsg("wrong username / password ");
+                                sendMsg("if you are not logged in, you will be disconnected after " + maxTime / 1000
+                                    + " seconds");
                             }
                         }
                         
@@ -103,13 +107,16 @@ public class ClientHandler {
                     // SocketTimeoutException
                 } catch (SocketTimeoutException e) {
                     System.out.println("Error: The waiting time is over " + maxTime);
+                    sendMsg("Error: The waiting time is over " + maxTime);
+                    
                 } catch (RuntimeException e) {
                     System.out.println(e.getMessage());
                 } catch (IOException e) {
                     e.printStackTrace();
                 } finally {
                     server.unsubscribe(this);
-                    System.out.println("Client disconnected: " + nickname);
+                    System.out.println(
+                        "Client disconnected: " + (nickname == null ? socket.getRemoteSocketAddress() : nickname));
                     try {
                         socket.close();
                     } catch (IOException e) {
