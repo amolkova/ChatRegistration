@@ -5,11 +5,10 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
+import java.sql.SQLException;
 import commands.Command;
 
 public class ClientHandler {
-    private Server server;
-    private Socket socket;
     private DataInputStream in;
     private DataOutputStream out;
     private int maxTime;
@@ -18,10 +17,8 @@ public class ClientHandler {
     private int noTimeout = 0;
     
     public ClientHandler(Server server, Socket socket) {
-        maxTime = 8000;
+        maxTime = 120000;
         try {
-            this.server = server;
-            this.socket = socket;
             in = new DataInputStream(socket.getInputStream());
             out = new DataOutputStream(socket.getOutputStream());
             
@@ -44,7 +41,13 @@ public class ClientHandler {
                             if (token.length < 3) {
                                 continue;
                             }
-                            String newNick = server.getAuthService().getNicknameByLoginAndPassword(token[1], token[2]);
+                            String newNick = null;
+                            try {
+                                newNick = server.getAuthService().getNicknameByLoginAndPassword(token[1], token[2]);
+                            } catch (SQLException e) {
+                                
+                                e.printStackTrace();
+                            }
                             login = token[1];
                             if (newNick != null) {
                                 if (!server.isLoginAuthenticated(login)) {
@@ -74,7 +77,13 @@ public class ClientHandler {
                             if (token.length < 4) {
                                 continue;
                             }
-                            boolean regSuccess = server.getAuthService().registration(token[1], token[2], token[3]);
+                            boolean regSuccess = false;
+                            try {
+                                regSuccess = server.getAuthService().registration(token[1], token[2], token[3]);
+                                
+                            } catch (SQLException e) {
+                                e.printStackTrace();
+                            }
                             if (regSuccess) {
                                 sendMsg(Command.REG_OK);
                             } else {
