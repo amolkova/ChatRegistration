@@ -1,7 +1,10 @@
 package client;
 
+import java.io.BufferedReader;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
+import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.net.Socket;
 import java.net.URL;
@@ -46,25 +49,28 @@ public class Controller implements Initializable {
     private final int PORT = 8189;
     private final String IP_ADDRESS = "localhost";
     
-    private boolean authenticated;
+    private String login;
     private String nickname;
     private Stage stage;
     private Stage regStage;
     private RegController regController;
     
     public void setAuthenticated(boolean authenticated) {
-        this.authenticated = authenticated;
+        
         msgPanel.setVisible(authenticated);
         msgPanel.setManaged(authenticated);
         authPanel.setVisible(!authenticated);
         authPanel.setManaged(!authenticated);
         clientList.setVisible(authenticated);
         clientList.setManaged(authenticated);
+        textArea.clear();
         
         if (!authenticated) {
             nickname = "";
+        } else {
+            reader();
         }
-        textArea.clear();
+        
         setTitle(nickname);
     }
     
@@ -84,6 +90,40 @@ public class Controller implements Initializable {
             });
         });
         setAuthenticated(false);
+    }
+    
+    private void writer(String message) {
+        try (FileWriter writer = new FileWriter("history_" + login + ".txt", true)) {
+            
+            writer.write(message);
+            writer.append('\n');
+            writer.flush();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        
+    }
+    
+    private void reader() {
+        try (BufferedReader reader = new BufferedReader(new FileReader("history_" + login + ".txt"))) {
+            
+            String line = reader.readLine();
+            int count = 0;
+            while (line != null && count < 100) {
+                count++;
+                textArea.appendText(line + "\n");
+                // считываем остальные строки в цикле
+                line = reader.readLine();
+            }
+            
+        } catch (Exception e) {
+            
+            if (e.getMessage().contains("Не удается найти указанный файл")) {
+                System.out.println("History not found ");
+            } else {
+                e.printStackTrace();
+            }
+        }
     }
     
     private void connect() {
@@ -118,6 +158,7 @@ public class Controller implements Initializable {
                             }
                         } else {
                             textArea.appendText(str + "\n");
+                            writer(str);
                         }
                     }
                     // цикл работы
@@ -141,6 +182,7 @@ public class Controller implements Initializable {
                             
                         } else {
                             textArea.appendText(str + "\n");
+                            writer(str);
                         }
                     }
                 } catch (RuntimeException e) {
@@ -176,6 +218,8 @@ public class Controller implements Initializable {
         if (socket == null || socket.isClosed()) {
             connect();
         }
+        
+        login = loginField.getText().trim();
         
         try {
             out.writeUTF(
